@@ -37,6 +37,10 @@ type TokenResponse struct {
 	// Scope A space-delimited list of scopes that are associated with this access token.
 	Scope string `json:"scope,omitempty"`
 
+	// AuthorizationDetails is a slice of authorization_detail objects granted to the token
+	// that complies with [RFC9396 - Rich Authorization Request].
+	AuthorizationDetails []map[string]any `json:"authorization_details,omitempty"`
+
 	// TokenType The type of the access token.
 	TokenType string `json:"token_type"`
 }
@@ -59,6 +63,19 @@ func NewTokenResponseWithOAuth2Token(t *oauth2.Token) *TokenResponse {
 
 	if scope, ok := t.Extra("scope").(string); ok {
 		tr.Scope = scope
+	}
+
+	if authDetails, ok := t.Extra("authorization_details").([]any); ok && len(authDetails) > 0 {
+		tr.AuthorizationDetails = make([]map[string]any, len(authDetails))
+		for i, authDetail := range authDetails {
+			if ad, ok := authDetail.(map[string]any); ok {
+				tr.AuthorizationDetails[i] = ad
+			}
+
+			// This runs the risk of having some of the tr.AuthorizationDetails items set to nil if the
+			// authorization detail objects are malformed. This is intentional to take advantage of pre-allocating
+			// the slice in TokenResponse.
+		}
 	}
 
 	return tr
