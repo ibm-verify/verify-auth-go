@@ -3,7 +3,9 @@ package oauth2
 import (
 	"context"
 	"crypto/rand"
+	"encoding/json"
 	"errors"
+	"maps"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -24,10 +26,11 @@ type DeviceAuthTokenCallback func() (*oauth2.Token, error)
 
 // Client represents an OAuth 2.0 / OIDC client.
 type Client struct {
-	cfg                 *Configuration
-	ClientAuth          ClientAuth
-	RedirectURL         string
-	Scopes              []string
+	cfg                  *Configuration
+	ClientAuth           ClientAuth
+	RedirectURL          string
+	Scopes               []string
+	AuthorizationDetails []map[string]any
 	// HTTPClient is used for all requests. Defaults to http.DefaultClient if nil.
 	HTTPClient          *http.Client
 	introspectionMaxAge time.Duration
@@ -36,16 +39,26 @@ type Client struct {
 // ClientOption configures optional fields on a Client.
 type ClientOption func(*Client)
 
+// WithRedirectURL adds a redirect_uri to the relevant requests
+// such as authorization code flow.
 func WithRedirectURL(u string) ClientOption {
 	return func(c *Client) { c.RedirectURL = u }
 }
 
+// WithScopes adds scopes to the request.
 func WithScopes(scopes ...string) ClientOption {
 	return func(c *Client) { c.Scopes = scopes }
 }
 
+// WithHTTPClient adds a custom HTTP client to be used
+// for all requests.
 func WithHTTPClient(hc *http.Client) ClientOption {
 	return func(c *Client) { c.HTTPClient = hc }
+}
+
+// WithAuthorizationDetails adds authorization_details to the request.
+func WithAuthorizationDetails(authorizationDetails []map[string]any) ClientOption {
+	return func(c *Client) { c.AuthorizationDetails = authorizationDetails }
 }
 
 // WithIntrospectionFallback enables revocation checking for JWT access tokens
@@ -114,12 +127,28 @@ func (c *Client) endpointParams(extra ...url.Values) (endpointResult, error) {
 	raw.Del("client_secret")
 
 	for _, vals := range extra {
-		for k, vs := range vals {
-			raw[k] = vs
-		}
+		maps.Copy(raw, vals)
 	}
 	res.params = raw
 	return res, nil
+}
+
+func (c *Client) authorizationDetailsParam(params url.Values) error {
+	if params.Has("authorization_details") {
+		return nil
+	}
+
+	if len(c.AuthorizationDetails) == 0 {
+		return nil
+	}
+
+	buff, err := json.Marshal(c.AuthorizationDetails)
+	if err != nil {
+		return err
+	}
+
+	params["authorization_details"] = []string{string(buff)}
+	return nil
 }
 
 // wrapOAuthError converts golang.org/x/oauth2 errors into *auth.Error.

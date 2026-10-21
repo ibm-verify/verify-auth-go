@@ -15,6 +15,9 @@ func (c *Client) AuthorizeWithBrowserFlow(ctx context.Context, parameters url.Va
 	if err != nil {
 		return nil, err
 	}
+	if err := c.authorizationDetailsParam(p.params); err != nil {
+		return nil, err
+	}
 
 	var opts []oauth2.AuthCodeOption
 	for k := range p.params {
@@ -64,6 +67,10 @@ func (c *Client) TokenWithAuthCode(ctx context.Context, authResponse *AuthorizeR
 		return nil, err
 	}
 
+	if err := c.authorizationDetailsParam(p.params); err != nil {
+		return nil, err
+	}
+
 	oauthConfig := &oauth2.Config{
 		ClientID:     p.id,
 		ClientSecret: p.secret,
@@ -95,6 +102,9 @@ func (c *Client) AuthorizeWithDeviceFlow(ctx context.Context, parameters url.Val
 	if err != nil {
 		return nil, err
 	}
+	if err := c.authorizationDetailsParam(p.params); err != nil {
+		return nil, err
+	}
 
 	var opts []oauth2.AuthCodeOption
 	for k := range p.params {
@@ -120,6 +130,9 @@ func (c *Client) AuthorizeWithDeviceFlow(ctx context.Context, parameters url.Val
 func (c *Client) TokenWithDeviceFlow(ctx context.Context, deviceAuthResponse *oauth2.DeviceAuthResponse) (*TokenResponse, error) {
 	p, err := c.endpointParams()
 	if err != nil {
+		return nil, err
+	}
+	if err := c.authorizationDetailsParam(p.params); err != nil {
 		return nil, err
 	}
 

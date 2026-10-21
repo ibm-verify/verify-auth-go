@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -33,6 +34,25 @@ var stubTokenResponse = map[string]any{
 type stubServer struct {
 	*httptest.Server
 	cfg *oauth2pkg.Configuration
+
+	mu    sync.Mutex
+	forms map[string]url.Values // last form received, keyed by request path
+}
+
+func (s *stubServer) record(r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.forms == nil {
+		s.forms = map[string]url.Values{}
+	}
+	s.forms[r.URL.Path] = r.PostForm
+}
+
+// lastForm returns the last form body received at the given path.
+func (s *stubServer) lastForm(path string) url.Values {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.forms[path]
 }
 
 func newStubServer(t *testing.T) *stubServer {
@@ -40,6 +60,7 @@ func newStubServer(t *testing.T) *stubServer {
 
 	mux := http.NewServeMux()
 	s := httptest.NewServer(mux)
+	stub := &stubServer{Server: s}
 
 	issuer := s.URL + "/oauth2"
 
@@ -68,6 +89,7 @@ func newStubServer(t *testing.T) *stubServer {
 			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
+		stub.record(r)
 
 		// Verify client credentials are present
 		if r.FormValue("client_id") == "" {
@@ -85,6 +107,8 @@ func newStubServer(t *testing.T) *stubServer {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.ParseForm()
+		stub.record(r)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]any{
 			"device_code":      "stub-device-code",
@@ -102,6 +126,7 @@ func newStubServer(t *testing.T) *stubServer {
 			return
 		}
 		r.ParseForm()
+		stub.record(r)
 		token := r.FormValue("token")
 		active := token == "stub-access-token"
 		now := time.Now().UTC()
@@ -127,10 +152,13 @@ func newStubServer(t *testing.T) *stubServer {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		r.ParseForm()
+		stub.record(r)
 		w.WriteHeader(http.StatusOK)
 	})
 
-	return &stubServer{Server: s, cfg: cfg}
+	stub.cfg = cfg
+	return stub
 }
 
 func writeOAuthError(w http.ResponseWriter, code, description string) {
@@ -403,7 +431,7 @@ func TestTokenWithRefreshToken(t *testing.T) {
 
 	c := newTestClient(t, s)
 
-	tr, err := c.TokenWithRefreshToken(context.Background(), "stub-refresh-token")
+	tr, err := c.TokenWithRefreshToken(context.Background(), "stub-refresh-token", nil)
 	if err != nil {
 		t.Fatalf("TokenWithRefreshToken: %v", err)
 	}

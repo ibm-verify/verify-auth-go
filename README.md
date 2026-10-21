@@ -55,31 +55,7 @@ func main() {
 }
 ```
 
-## Common Workflows
+## Documentation
 
-Once initialized, `*oauth2.Client` handles token acquisition, validation, and lifecycle operations:
-
-### 1. Acquiring Tokens
-* **Client Credentials / API Client**: Request access tokens using machine-to-machine client credentials (`TokenWithAPIClient`).
-* **Browser / Authorization Code Flow**: Generate authorization URLs with PKCE support (`AuthorizeWithBrowserFlow`) and exchange authorization codes for tokens (`TokenWithAuthCode`).
-* **Device Authorization Grant**: Request device codes for headless devices (`AuthorizeWithDeviceFlow`) and poll for the token (`TokenWithDeviceFlow`).
-* **Refresh Token**: Refresh expired access tokens (`TokenWithRefreshToken`).
-
-### 2. Validating Tokens
-* **Access Tokens**: Validate JWT signatures against JWKS, verify standard claims (`iss`, `aud`, `exp`), or automatically introspect opaque tokens (`ValidateAccessToken`).
-* **ID Tokens**: Verify signatures and OIDC claims against the issuer JWKS (`ValidateIDToken`).
-* **Refresh Tokens**: Verify active status via server introspection (`ValidateRefreshToken`).
-
-### 3. Token Lifecycle & User Info
-* **Introspection**: Inspect token status and custom claims (`IntrospectToken`).
-* **Revocation**: Revoke access or refresh tokens (`RevokeToken`).
-* **UserInfo**: Fetch claims for authenticated users from the OIDC UserInfo endpoint (`UserInfo`).
-
-## Client Options
-
-Configure optional client behavior using functional options passed to `oauth2.NewClient`:
-
-* `WithScopes(...)`: Sets default scopes for token requests.
-* `WithRedirectURL(...)`: Sets the OAuth 2.0 redirect URI.
-* `WithHTTPClient(...)`: Provides a custom `*http.Client` for requests.
-* `WithIntrospectionFallback(maxAge)`: Enables automatic revocation checks via introspection when validating JWTs older than `maxAge`.
+- [API reference](https://pkg.go.dev/github.com/ibm-verify/verify-auth-go/oauth2): the methods on `oauth2.Client` and the available client options.
+- [Supported grant types and client authentication methods](oauth2/README.md).
