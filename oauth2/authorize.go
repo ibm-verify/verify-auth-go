@@ -21,6 +21,9 @@ func (c *Client) AuthorizeWithBrowserFlow(ctx context.Context, parameters url.Va
 
 	var opts []oauth2.AuthCodeOption
 	for k := range p.params {
+		if k == "client_assertion_type" || k == "client_assertion" || k == "client_secret" {
+			continue
+		}
 		opts = append(opts, oauth2.SetAuthURLParam(k, p.params.Get(k)))
 	}
 
@@ -75,8 +78,9 @@ func (c *Client) TokenWithAuthCode(ctx context.Context, authResponse *AuthorizeR
 		ClientID:     p.id,
 		ClientSecret: p.secret,
 		Endpoint: oauth2.Endpoint{
-			AuthURL:  c.cfg.AuthorizationEndpoint,
-			TokenURL: c.cfg.TokenEndpoint,
+			AuthURL:   c.cfg.AuthorizationEndpoint,
+			TokenURL:  c.cfg.TokenEndpoint,
+			AuthStyle: oauth2.AuthStyleInParams,
 		},
 		Scopes:      c.Scopes,
 		RedirectURL: c.RedirectURL,
@@ -142,6 +146,7 @@ func (c *Client) TokenWithDeviceFlow(ctx context.Context, deviceAuthResponse *oa
 		Endpoint: oauth2.Endpoint{
 			DeviceAuthURL: c.cfg.DeviceAuthorizationEndpoint,
 			TokenURL:      c.cfg.TokenEndpoint,
+			AuthStyle:     oauth2.AuthStyleInParams,
 		},
 		Scopes: c.Scopes,
 	}
